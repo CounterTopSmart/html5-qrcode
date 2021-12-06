@@ -384,32 +384,48 @@ export class Html5Qrcode {
                 reject("videoConstraints should be defined");
                 return;
             }
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+
+            if (navigator.mediaDevices) {
+                // throw "cameraIdOrConfig is required";
                 // Ignore all other video constraints if the videoConstraints
                 // is passed.
-                navigator.mediaDevices.getUserMedia(
+
+
+                // potential workaround for ios zoom - https://developers.google.com/web/updates/2016/12/imagecapture
+
+                (<any> navigator).mediaDevices.getUserMedia(
                     {
                         audio: false,
-                        video: videoConstraints
-                    }).then((stream) => {
-                        $this.onMediaStreamReceived(
-                            stream,
-                            internalConfig,
-                            areVideoConstraintsEnabled,
-                            rootElementWidth,
-                            qrCodeSuccessCallback,
-                            qrCodeErrorCallback!)
-                            .then((_) => {
-                                toScanningStateChangeTransaction.execute();
-                                $this.isScanning = true;
-                                resolve(/* Void */ null);
-                            })
-                            .catch((error) => {
-                                toScanningStateChangeTransaction.cancel();
-                                reject(error);
-                            });
-                    })
-                    .catch((error) => {
+                        video: {
+                            aspectRatio: 1,
+                            zoom: true,
+                            width: {min: 350, max: 720},
+                            height: {min: 350, max: 720},
+                            // frameRate: {min: 60, max: 100},
+                            facingMode: {exact: "environment"},
+                            advanced: [
+                                {focusMode: "continuous"},
+                                {zoom: 6}
+                            ]
+                        }
+                    }).then((stream: MediaStream) => {
+                    $this.onMediaStreamReceived(
+                        stream,
+                        internalConfig,
+                        areVideoConstraintsEnabled,
+                        rootElementWidth,
+                        qrCodeSuccessCallback,
+                        qrCodeErrorCallback!)
+                        .then((_) => {
+                            toScanningStateChangeTransaction.execute();
+                            $this.isScanning = true;
+                            resolve(/* Void */ null);
+                        })
+                        .catch((error) => {
+                            toScanningStateChangeTransaction.cancel();
+                            reject(error);
+                        });
+                }).catch((error: Error) => {
                         toScanningStateChangeTransaction.cancel();
                         reject(Html5QrcodeStrings.errorGettingUserMedia(error));
                     });
@@ -1013,6 +1029,7 @@ export class Html5Qrcode {
         const shouldShadingBeApplied
             = internalConfig.isShadedBoxEnabled()
                 && qrDimensions.height <= height;
+
         const defaultQrRegion: QrcodeRegionBounds = {
             x: 0,
             y: 0,
@@ -1028,9 +1045,10 @@ export class Html5Qrcode {
             qrRegion.width, qrRegion.height);
         const context: CanvasRenderingContext2D
              = canvasElement.getContext("2d")!;
+
         context.canvas.width = qrRegion.width;
         context.canvas.height = qrRegion.height;
- 
+
         // Insert the canvas
         this.element!.append(canvasElement);
         if (shouldShadingBeApplied) {
@@ -1431,6 +1449,8 @@ export class Html5Qrcode {
             throw "'config.qrbox' dimensions should not be greater than the "
             + "dimensions of the root HTML element.";
         }
+
+
 
         return {
             x: (width - qrboxSize.width) / 2,
